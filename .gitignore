@@ -13,3 +13,4 @@ node_modules/
 # Go
 bin/
 pkg/
+contracts/cipcc
