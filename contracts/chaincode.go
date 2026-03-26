@@ -62,6 +62,32 @@ type Startup struct {
 	DocType           string `json:"docType"`
 }
 
+// StartupPublicView is the public-safe view returned by GetStartup (no PAN/GST)
+type StartupPublicView struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Email            string `json:"email"`
+	Industry         string `json:"industry"`
+	BusinessType     string `json:"businessType"`
+	Country          string `json:"country"`
+	State            string `json:"state"`
+	City             string `json:"city"`
+	Website          string `json:"website"`
+	Description      string `json:"description"`
+	FoundedYear      string `json:"foundedYear"`
+	FounderName      string `json:"founderName"`
+	ValidationStatus string `json:"validationStatus"`
+	DocType          string `json:"docType"`
+}
+
+// StartupPrivate holds sensitive startup KYC data stored in the StartupPrivateData PDC
+type StartupPrivate struct {
+	StartupID         string `json:"startupID"`
+	PanNumber         string `json:"panNumber"`
+	GstNumber         string `json:"gstNumber"`
+	IncorporationDate string `json:"incorporationDate"`
+}
+
 type Investor struct {
 	ID               string `json:"id"`
 	Name             string `json:"name"`
@@ -78,6 +104,30 @@ type Investor struct {
 	OrganizationName string `json:"organizationName"`
 	ValidationStatus string `json:"validationStatus"`
 	DocType          string `json:"docType"`
+}
+
+// InvestorPublicView is the public-safe view returned by GetInvestor (no PAN/Aadhar/income)
+type InvestorPublicView struct {
+	ID               string `json:"id"`
+	Name             string `json:"name"`
+	Email            string `json:"email"`
+	InvestorType     string `json:"investorType"`
+	Country          string `json:"country"`
+	State            string `json:"state"`
+	City             string `json:"city"`
+	InvestmentFocus  string `json:"investmentFocus"`
+	PortfolioSize    string `json:"portfolioSize"`
+	OrganizationName string `json:"organizationName"`
+	ValidationStatus string `json:"validationStatus"`
+	DocType          string `json:"docType"`
+}
+
+// InvestorPrivate holds sensitive investor KYC data stored in the InvestorPrivateData PDC
+type InvestorPrivate struct {
+	InvestorID   string `json:"investorID"`
+	PanNumber    string `json:"panNumber"`
+	AadharNumber string `json:"aadharNumber"`
+	AnnualIncome int64  `json:"annualIncome"`
 }
 
 type Validator struct {
@@ -213,7 +263,26 @@ func (c *CrowdfundContract) RegisterStartup(ctx contractapi.TransactionContextIn
 		DocType:           "STARTUP",
 	}
 
-	return put(ctx, "STARTUP_"+id, startup)
+	if err := put(ctx, "STARTUP_"+id, startup); err != nil {
+		return err
+	}
+
+	// Store sensitive KYC data in the StartupPrivateData private data collection
+	privateData := StartupPrivate{
+		StartupID:         id,
+		PanNumber:         panNumber,
+		GstNumber:         gstNumber,
+		IncorporationDate: incorporationDate,
+	}
+	privBytes, err := json.Marshal(privateData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal startup private data: %v", err)
+	}
+	if err := ctx.GetStub().PutPrivateData("StartupPrivateData", "STARTUP_PRIV_"+id, privBytes); err != nil {
+		return fmt.Errorf("failed to store startup private data: %v", err)
+	}
+
+	return nil
 }
 
 // RegisterInvestor — Investor submits KYC & financial details for validation
@@ -246,7 +315,26 @@ func (c *CrowdfundContract) RegisterInvestor(ctx contractapi.TransactionContextI
 		DocType:          "INVESTOR",
 	}
 
-	return put(ctx, "INVESTOR_"+id, investor)
+	if err := put(ctx, "INVESTOR_"+id, investor); err != nil {
+		return err
+	}
+
+	// Store sensitive KYC data in the InvestorPrivateData private data collection
+	privateData := InvestorPrivate{
+		InvestorID:   id,
+		PanNumber:    panNumber,
+		AadharNumber: aadharNumber,
+		AnnualIncome: annualIncome,
+	}
+	privBytes, err := json.Marshal(privateData)
+	if err != nil {
+		return fmt.Errorf("failed to marshal investor private data: %v", err)
+	}
+	if err := ctx.GetStub().PutPrivateData("InvestorPrivateData", "INVESTOR_PRIV_"+id, privBytes); err != nil {
+		return fmt.Errorf("failed to store investor private data: %v", err)
+	}
+
+	return nil
 }
 
 // RegisterValidator — Validator registers with credentials
@@ -675,9 +763,9 @@ func (c *CrowdfundContract) GetProject(ctx contractapi.TransactionContextInterfa
 	return &project, nil
 }
 
-// GetStartup — returns startup details
+// GetStartup — returns public startup details (sensitive KYC fields are omitted)
 func (c *CrowdfundContract) GetStartup(ctx contractapi.TransactionContextInterface,
-	startupID string) (*Startup, error) {
+	startupID string) (*StartupPublicView, error) {
 
 	bytes, err := ctx.GetStub().GetState("STARTUP_" + startupID)
 	if err != nil || bytes == nil {
@@ -685,12 +773,57 @@ func (c *CrowdfundContract) GetStartup(ctx contractapi.TransactionContextInterfa
 	}
 	var startup Startup
 	json.Unmarshal(bytes, &startup)
-	return &startup, nil
+
+	// Return a public-safe view without PAN / GST numbers
+	return &StartupPublicView{
+		ID:               startup.ID,
+		Name:             startup.Name,
+		Email:            startup.Email,
+		Industry:         startup.Industry,
+		BusinessType:     startup.BusinessType,
+		Country:          startup.Country,
+		State:            startup.State,
+		City:             startup.City,
+		Website:          startup.Website,
+		Description:      startup.Description,
+		FoundedYear:      startup.FoundedYear,
+		FounderName:      startup.FounderName,
+		ValidationStatus: startup.ValidationStatus,
+		DocType:          startup.DocType,
+	}, nil
 }
 
-// GetInvestor — returns investor details
+// GetPrivateStartupData — returns sensitive startup KYC data from the StartupPrivateData PDC.
+// Only members of StartupOrg are permitted to read this collection.
+func (c *CrowdfundContract) GetPrivateStartupData(ctx contractapi.TransactionContextInterface,
+	startupID string) (*StartupPrivate, error) {
+
+	mspID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("access denied: cannot determine caller identity")
+	}
+	if mspID != "StartupOrgMSP" {
+		return nil, fmt.Errorf("access denied: only StartupOrg members can access private startup data")
+	}
+
+	bytes, err := ctx.GetStub().GetPrivateData("StartupPrivateData", "STARTUP_PRIV_"+startupID)
+	if err != nil {
+		return nil, fmt.Errorf("error reading private data: %v", err)
+	}
+	if bytes == nil {
+		return nil, fmt.Errorf("private data not available for startup %s", startupID)
+	}
+
+	var private StartupPrivate
+	if err := json.Unmarshal(bytes, &private); err != nil {
+		return nil, err
+	}
+	return &private, nil
+}
+
+// GetInvestor — returns public investor details (sensitive KYC / financial fields are omitted)
 func (c *CrowdfundContract) GetInvestor(ctx contractapi.TransactionContextInterface,
-	investorID string) (*Investor, error) {
+	investorID string) (*InvestorPublicView, error) {
 
 	bytes, err := ctx.GetStub().GetState("INVESTOR_" + investorID)
 	if err != nil || bytes == nil {
@@ -698,7 +831,50 @@ func (c *CrowdfundContract) GetInvestor(ctx contractapi.TransactionContextInterf
 	}
 	var investor Investor
 	json.Unmarshal(bytes, &investor)
-	return &investor, nil
+
+	// Return a public-safe view without PAN / Aadhar / annual income
+	return &InvestorPublicView{
+		ID:               investor.ID,
+		Name:             investor.Name,
+		Email:            investor.Email,
+		InvestorType:     investor.InvestorType,
+		Country:          investor.Country,
+		State:            investor.State,
+		City:             investor.City,
+		InvestmentFocus:  investor.InvestmentFocus,
+		PortfolioSize:    investor.PortfolioSize,
+		OrganizationName: investor.OrganizationName,
+		ValidationStatus: investor.ValidationStatus,
+		DocType:          investor.DocType,
+	}, nil
+}
+
+// GetPrivateInvestorData — returns sensitive investor KYC data from the InvestorPrivateData PDC.
+// Only members of InvestorOrg are permitted to read this collection.
+func (c *CrowdfundContract) GetPrivateInvestorData(ctx contractapi.TransactionContextInterface,
+	investorID string) (*InvestorPrivate, error) {
+
+	mspID, err := ctx.GetClientIdentity().GetMSPID()
+	if err != nil {
+		return nil, fmt.Errorf("access denied: cannot determine caller identity")
+	}
+	if mspID != "InvestorOrgMSP" {
+		return nil, fmt.Errorf("access denied: only InvestorOrg members can access private investor data")
+	}
+
+	bytes, err := ctx.GetStub().GetPrivateData("InvestorPrivateData", "INVESTOR_PRIV_"+investorID)
+	if err != nil {
+		return nil, fmt.Errorf("error reading private data: %v", err)
+	}
+	if bytes == nil {
+		return nil, fmt.Errorf("private data not available for investor %s", investorID)
+	}
+
+	var private InvestorPrivate
+	if err := json.Unmarshal(bytes, &private); err != nil {
+		return nil, err
+	}
+	return &private, nil
 }
 
 // ============================================================

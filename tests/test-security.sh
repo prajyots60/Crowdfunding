@@ -7,11 +7,11 @@
 # Chaincode: cipcc
 # ============================================================
 
-CHANNEL="defaultchannel"
+CHANNEL="cip-main-channel"
 CHAINCODE="cipcc"
 ORDERER="orderer-api.127-0-0-1.nip.io:9090"
 
-BASE_PATH="/mnt/c/Users/LENOVO/Desktop/crowdfunding"
+BASE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 RESULTS_DIR="./results/security"
 mkdir -p "$RESULTS_DIR"
