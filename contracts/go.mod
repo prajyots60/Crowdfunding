@@ -1,10 +1,12 @@
 module cipcc
 
-go 1.21.6
+go 1.17
 
-require github.com/hyperledger/fabric-contract-api-go v1.2.2
+require github.com/hyperledger/fabric-contract-api-go v1.1.0
 
 require (
+	github.com/PuerkitoBio/purell v1.1.1 // indirect
+	github.com/PuerkitoBio/urlesc v0.0.0-20170810143723-de5bf2ad4578 // indirect
 	github.com/go-openapi/jsonpointer v0.20.0 // indirect
 	github.com/go-openapi/jsonreference v0.20.2 // indirect
 	github.com/go-openapi/spec v0.20.9 // indirect
@@ -26,8 +28,33 @@ require (
 	golang.org/x/net v0.17.0 // indirect
 	golang.org/x/sys v0.14.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20231030173426-d783a09b4405 // indirect
+	golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
+	google.golang.org/genproto v0.0.0-20230110181048-76db0878b65f // indirect
 	google.golang.org/grpc v1.59.0 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
-	gopkg.in/yaml.v3 v3.0.1 // indirect
+	gopkg.in/yaml.v2 v2.4.0 // indirect
 )
+
+replace github.com/go-openapi/jsonpointer => github.com/go-openapi/jsonpointer v0.19.5
+
+replace github.com/go-openapi/jsonreference => github.com/go-openapi/jsonreference v0.19.5
+
+replace github.com/go-openapi/spec => github.com/go-openapi/spec v0.20.4
+
+replace github.com/go-openapi/swag => github.com/go-openapi/swag v0.19.15
+
+replace golang.org/x/mod => golang.org/x/mod v0.5.1
+
+replace golang.org/x/net => golang.org/x/net v0.0.0-20220225172249-27dd8689420f
+
+replace golang.org/x/sys => golang.org/x/sys v0.0.0-20220227234510-4e6760a101f9
+
+replace golang.org/x/text => golang.org/x/text v0.3.7
+
+replace google.golang.org/genproto => google.golang.org/genproto v0.0.0-20220208230804-65c12eb4c068
+
+replace google.golang.org/genproto/googleapis/rpc => google.golang.org/genproto v0.0.0-20220208230804-65c12eb4c068
+
+replace google.golang.org/grpc => google.golang.org/grpc v1.45.0
+
+replace google.golang.org/protobuf => google.golang.org/protobuf v1.27.1

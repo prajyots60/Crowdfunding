@@ -5,10 +5,15 @@
 
 # Fabric generated folders
 _msp/
+_wallets/
+_gateways/
 wallet/
 *.log
 results/
 node_modules/
+dist/
+.env
+*.tar.gz
 
 # Go
 bin/

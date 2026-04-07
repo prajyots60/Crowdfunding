@@ -4,15 +4,15 @@
 # SINGLE CHANNEL CONCURRENCY TEST SUITE
 # Crowdfunding Investment Platform (CIP)
 # Network: Microfab
-# Channel: defaultchannel
+# Channel: cip-main-channel
 # Chaincode: cipcc
 # ============================================================
 
-CHANNEL="defaultchannel"
+CHANNEL="cip-main-channel"
 CHAINCODE="cipcc"
 ORDERER="orderer-api.127-0-0-1.nip.io:9090"
 
-BASE_PATH="/mnt/c/Users/LENOVO/Desktop/crowdfunding"
+BASE_PATH="/home/supra/Desktop/Crowdfunding"
 
 RESULTS_DIR="./results/concurrency"
 mkdir -p "$RESULTS_DIR"
