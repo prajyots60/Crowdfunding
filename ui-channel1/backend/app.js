@@ -1,6 +1,9 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
+const fs = require("fs");
+const path = require("path");
+const { spawn } = require("child_process");
 const { getContract } = require("./fabric");
 
 const app = express();
@@ -9,9 +12,22 @@ app.use(cors());
 
 const CHANNEL = "cip-main-channel";
 const CHAINCODE = "cipcc";
+const PERF_HISTORY_PATH = path.join(__dirname, "perf", "perf-history.json");
+const PERF_RUNNER_PATH = path.join(__dirname, "perf", "runPerf.js");
+let perfRunning = false;
 
 function asString(value) {
   return value === undefined || value === null ? "" : String(value);
+}
+
+function loadPerfHistory() {
+  try {
+    const raw = fs.readFileSync(PERF_HISTORY_PATH, "utf-8");
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch (err) {
+    return [];
+  }
 }
 
 async function withContract(channel, chaincode, org, identity, handler, res) {
@@ -32,6 +48,46 @@ async function withContract(channel, chaincode, org, identity, handler, res) {
 
 app.get("/health", (req, res) => {
   res.json({ ok: true });
+});
+
+app.get("/perf/history", (req, res) => {
+  res.json(loadPerfHistory());
+});
+
+app.post("/perf/run", async (req, res) => {
+  if (perfRunning) {
+    res.status(409).json({ error: "Performance test already running" });
+    return;
+  }
+
+  const totalTx = asString(req.body?.totalTx || 1000);
+  const concurrency = asString(req.body?.concurrency || 8);
+  perfRunning = true;
+
+  const child = spawn(process.execPath, [PERF_RUNNER_PATH], {
+    env: {
+      ...process.env,
+      API_BASE: process.env.API_BASE || "http://localhost:4000",
+      TOTAL_TX: totalTx,
+      CONCURRENCY: concurrency,
+    },
+  });
+
+  let stderr = "";
+  child.stderr.on("data", (chunk) => {
+    stderr += chunk.toString();
+  });
+
+  child.on("close", (code) => {
+    perfRunning = false;
+    if (code !== 0) {
+      res.status(500).json({ error: stderr || "Performance run failed" });
+      return;
+    }
+
+    const history = loadPerfHistory();
+    res.json({ ok: true, latest: history[0] || null, history });
+  });
 });
 
 // Startup

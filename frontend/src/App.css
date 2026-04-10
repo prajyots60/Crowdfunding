@@ -33,6 +33,10 @@
   display: flex;
   flex-direction: column;
   gap: 24px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: auto;
 }
 
 .brand {
@@ -355,6 +359,107 @@ button.ghost {
   color: #9bd8ff;
 }
 
+.perf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.perf-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.perf-charts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.chart {
+  background: rgba(20, 12, 36, 0.7);
+  border: 1px solid var(--stroke);
+  border-radius: 14px;
+  padding: 12px;
+}
+
+.chart-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  margin-bottom: 10px;
+}
+
+.chart-bars {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(36px, 1fr));
+  align-items: end;
+  gap: 10px;
+  height: 120px;
+}
+
+.chart-bar {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.bar {
+  width: 100%;
+  min-height: 6px;
+  border-radius: 8px 8px 4px 4px;
+  background: linear-gradient(180deg, #8a2be2, #5a189a);
+  box-shadow: 0 0 10px rgba(138, 43, 226, 0.35);
+}
+
+.bar.warning {
+  background: linear-gradient(180deg, #ff2d8d, #9a1f5a);
+  box-shadow: 0 0 10px rgba(255, 45, 141, 0.35);
+}
+
+.bar-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-align: center;
+}
+
+.table-scroll {
+  overflow: auto;
+  border: 1px solid var(--stroke);
+  border-radius: 12px;
+}
+
+.perf-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 720px;
+}
+
+.perf-table th,
+.perf-table td {
+  padding: 10px 12px;
+  font-size: 12px;
+  text-align: left;
+  border-bottom: 1px solid var(--stroke);
+}
+
+.perf-table th {
+  color: var(--muted);
+  font-weight: 600;
+  background: rgba(20, 12, 36, 0.7);
+  position: sticky;
+  top: 0;
+}
+
+.perf-table tbody tr:hover {
+  background: rgba(138, 43, 226, 0.12);
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -418,6 +523,7 @@ button.ghost {
     position: sticky;
     top: 0;
     z-index: 10;
+    height: auto;
   }
 
   .hero {
@@ -427,6 +533,10 @@ button.ghost {
   .grid.two,
   .grid.three,
   .grid.four {
+    grid-template-columns: 1fr;
+  }
+
+  .perf-charts {
     grid-template-columns: 1fr;
   }
 }

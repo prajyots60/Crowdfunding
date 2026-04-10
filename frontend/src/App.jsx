@@ -1015,32 +1015,180 @@ function SettlementSection({
   );
 }
 
-function PerformanceSection() {
+function PerformanceSection({
+  history,
+  loading,
+  error,
+  running,
+  lastUpdated,
+  onRefresh,
+  onRunTest,
+}) {
+  const latest = history[0];
+  const trend = history.slice(0, 8).reverse();
+  const maxTps = Math.max(1, ...trend.map((run) => run.tps || 0));
+  const maxP95 = Math.max(1, ...trend.map((run) => run.latency?.p95Ms || 0));
+
+  const formatMs = (value) => `${Math.round(value)} ms`;
+  const formatTps = (value) => (value ? value.toFixed(2) : "0.00");
+
   return (
     <section id="performance" className="panel">
       <div className="card">
-        <h2>Performance Snapshot</h2>
-        <div className="grid four">
-          <div className="metric">
-            <span>Concurrent Project Creation</span>
-            <strong>10 tx / 1132 ms</strong>
-            <em>TPS 8.84</em>
+        <div className="perf-header">
+          <div>
+            <h2>Performance Snapshot</h2>
+            <p className="muted">Latest run from perf history.</p>
+            {lastUpdated && (
+              <p className="muted">Last updated: {lastUpdated}</p>
+            )}
           </div>
-          <div className="metric">
-            <span>Concurrent Funding</span>
-            <strong>5 tx / 1070 ms</strong>
-            <em>TPS 4.67</em>
+          <div className="perf-actions">
+            <button className="ghost" onClick={onRefresh}>
+              Refresh
+            </button>
+            <button
+              onClick={() => onRunTest({ totalTx: 1000, concurrency: 8 })}
+              disabled={running}
+            >
+              {running ? "Running..." : "Run 1000 Tx Test"}
+            </button>
           </div>
-          <div className="metric">
-            <span>Concurrent Validation</span>
-            <strong>5 tx / 6138 ms</strong>
-            <em>TPS 0.81</em>
+        </div>
+        {loading && <p className="muted">Loading performance history...</p>}
+        {running && <p className="muted">Performance test in progress...</p>}
+        {error && <p className="muted">{error}</p>}
+        {!loading && latest && (
+          <div className="grid four">
+            <div className="metric">
+              <span>Total Transactions</span>
+              <strong>{latest.totalTx}</strong>
+              <em>Success {latest.success}</em>
+            </div>
+            <div className="metric">
+              <span>Duration</span>
+              <strong>{formatMs(latest.durationMs)}</strong>
+              <em>TPS {formatTps(latest.tps)}</em>
+            </div>
+            <div className="metric">
+              <span>Latency (p50)</span>
+              <strong>{formatMs(latest.latency?.p50Ms || 0)}</strong>
+              <em>p95 {formatMs(latest.latency?.p95Ms || 0)}</em>
+            </div>
+            <div className="metric">
+              <span>Concurrency</span>
+              <strong>{latest.concurrency}</strong>
+              <em>Chains {latest.chainCount}</em>
+            </div>
           </div>
-          <div className="metric">
-            <span>Overall</span>
-            <strong>20 tx / 8340 ms</strong>
-            <em>TPS 2.40</em>
+        )}
+        {!loading && !latest && (
+          <p className="muted">Run a benchmark to populate metrics.</p>
+        )}
+      </div>
+      <div className="card">
+        <div className="perf-header">
+          <div>
+            <h3>Benchmark Mode</h3>
+            <p className="muted">Preset runs with mixed operations.</p>
           </div>
+          <div className="perf-actions">
+            <button
+              className="ghost"
+              onClick={() => onRunTest({ totalTx: 500, concurrency: 4 })}
+              disabled={running}
+            >
+              500 tx / c4
+            </button>
+            <button
+              className="ghost"
+              onClick={() => onRunTest({ totalTx: 1000, concurrency: 8 })}
+              disabled={running}
+            >
+              1000 tx / c8
+            </button>
+            <button
+              className="ghost"
+              onClick={() => onRunTest({ totalTx: 2000, concurrency: 16 })}
+              disabled={running}
+            >
+              2000 tx / c16
+            </button>
+          </div>
+        </div>
+        <div className="perf-charts">
+          <div className="chart">
+            <div className="chart-title">TPS Trend</div>
+            <div className="chart-bars">
+              {trend.map((run) => (
+                <div key={`${run.id}-tps`} className="chart-bar">
+                  <span
+                    className="bar"
+                    style={{ height: `${(run.tps / maxTps) * 100}%` }}
+                  />
+                  <span className="bar-label">{formatTps(run.tps)}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="chart">
+            <div className="chart-title">p95 Latency</div>
+            <div className="chart-bars">
+              {trend.map((run) => (
+                <div key={`${run.id}-p95`} className="chart-bar">
+                  <span
+                    className="bar warning"
+                    style={{
+                      height: `${((run.latency?.p95Ms || 0) / maxP95) * 100}%`,
+                    }}
+                  />
+                  <span className="bar-label">
+                    {formatMs(run.latency?.p95Ms || 0)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </div>
+      <div className="card">
+        <h3>Run History</h3>
+        <div className="table-scroll">
+          <table className="perf-table">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Total</th>
+                <th>Success</th>
+                <th>Failed</th>
+                <th>Duration</th>
+                <th>TPS</th>
+                <th>p50</th>
+                <th>p95</th>
+              </tr>
+            </thead>
+            <tbody>
+              {history.length === 0 && (
+                <tr>
+                  <td colSpan="8" className="muted">
+                    No performance runs yet.
+                  </td>
+                </tr>
+              )}
+              {history.map((run) => (
+                <tr key={run.id}>
+                  <td>{new Date(run.id).toLocaleString()}</td>
+                  <td>{run.totalTx}</td>
+                  <td>{run.success}</td>
+                  <td>{run.failed}</td>
+                  <td>{formatMs(run.durationMs)}</td>
+                  <td>{formatTps(run.tps)}</td>
+                  <td>{formatMs(run.latency?.p50Ms || 0)}</td>
+                  <td>{formatMs(run.latency?.p95Ms || 0)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       </div>
     </section>
@@ -1053,6 +1201,11 @@ function App() {
   const [apiStatus, setApiStatus] = useState("checking");
   const [modalOpen, setModalOpen] = useState(false);
   const [modalTitle, setModalTitle] = useState("Response");
+  const [perfHistory, setPerfHistory] = useState([]);
+  const [perfLoading, setPerfLoading] = useState(false);
+  const [perfError, setPerfError] = useState("");
+  const [perfRunning, setPerfRunning] = useState(false);
+  const [perfUpdatedAt, setPerfUpdatedAt] = useState("");
 
   const navItems = useMemo(
     () => [
@@ -1201,6 +1354,57 @@ function App() {
     };
   }, []);
 
+  const fetchPerfHistory = async () => {
+    setPerfLoading(true);
+    setPerfError("");
+    try {
+      const response = await fetch(`${API_BASE}/perf/history`);
+      if (!response.ok) {
+        throw new Error("Unable to load performance history");
+      }
+      const data = await response.json();
+      setPerfHistory(Array.isArray(data) ? data : []);
+      setPerfUpdatedAt(new Date().toLocaleTimeString());
+    } catch (err) {
+      setPerfError(err.message);
+    } finally {
+      setPerfLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPerfHistory();
+  }, []);
+
+  const runPerfTest = async ({ totalTx, concurrency }) => {
+    if (perfRunning) {
+      return;
+    }
+    setPerfRunning(true);
+    setPerfError("");
+    try {
+      const response = await fetch(`${API_BASE}/perf/run`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ totalTx, concurrency }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Performance run failed");
+      }
+      if (Array.isArray(data.history)) {
+        setPerfHistory(data.history);
+        setPerfUpdatedAt(new Date().toLocaleTimeString());
+      } else {
+        await fetchPerfHistory();
+      }
+    } catch (err) {
+      setPerfError(err.message);
+    } finally {
+      setPerfRunning(false);
+    }
+  };
+
   return (
     <div className="app-shell">
       <ResponseModal
@@ -1260,7 +1464,15 @@ function App() {
           setResolveForm={setResolveForm}
           callApi={callApi}
         />
-        <PerformanceSection />
+        <PerformanceSection
+          history={perfHistory}
+          loading={perfLoading}
+          error={perfError}
+          running={perfRunning}
+          lastUpdated={perfUpdatedAt}
+          onRefresh={fetchPerfHistory}
+          onRunTest={runPerfTest}
+        />
       </main>
     </div>
   );
